@@ -1,0 +1,93 @@
+Pre-trained Encoder: Pre-trained ResNet-18 to extract spatial features from the hyperspectral image (removes final FC layer).
+
+Reconstruction Matrix Processing: 3D convolution extracts relevant features from the reconstruction matrix.
+
+Channel-Aware Feature Fusion: Concatenate encoder features with processed reconstruction matrix features. Use channel-aware fusion to combine information effectively.
+
+Decoder for Reconstruction: Upscale fused features through decoder blocks with dropout for regularization. Reconstruct final 3-channel image.
+
+Training with Early Stopping: Train with MSE loss and Adam optimizer. Early stopping monitors validation loss to prevent overfitting.
+
+
+
+
+Intended Architecture Diagram
+
+
+┌──────────────────────────┐
+│     Input Image (x)      │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│        ResNet-18         │
+│   (without last layer)   │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│   Encoder Features (EF)  │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────┐              ┌──────────────────────────┐
+│ Reconstruction Matrix    │              │ Reshape for 3D Conv      │
+│     (RM)                 │              │ (add channel dim)        │
+└──────────────────────────┘              └──────────────────────────┘
+            │                                    │
+            v                                    v
+┌──────────────────────────────────────────────────────────────────┐
+│                   3D Convolutional Layer                         │
+│                & ReLU Activation (1x64x3x3x3)                    │
+└──────────────────────────────────────────────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│   Flatten Encoded Matrix │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│   Concatenate (EF + EM)  │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────────────────────────────────────────────┐
+│                 2D Convolutional Layer                           │
+│                & ReLU Activation (8x256x3x3)                     │
+└──────────────────────────────────────────────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│        Dropout           │
+│          (p=0.2)         │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────────────────────────────────────────────┐
+│                 ConvTranspose2D Block 1                          │
+│     (256x128x3x3)   ReLU & Dropout                               │
+└──────────────────────────────────────────────────────────────────┘
+            │
+            v
+┌──────────────────────────────────────────────────────────────────┐
+│                 ConvTranspose2D Block 2                          │
+│     (128x64x3x3)    ReLU & Dropout                               │
+└──────────────────────────────────────────────────────────────────┘
+            │
+            v
+┌──────────────────────────────────────────────────────────────────┐
+│                 ConvTranspose2D Block 3                          │
+│     (64x32x3x3)    ReLU & Dropout                                │
+└──────────────────────────────────────────────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│ ConvTranspose2D Out Layer│
+│     (32x3x3x3)           │
+└──────────────────────────┘
+            │
+            v
+┌──────────────────────────┐
+│  Reconstructed Image     │
+└──────────────────────────┘
